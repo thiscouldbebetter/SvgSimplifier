@@ -1,0 +1,131 @@
+<html>
+<body>
+
+<div id="divUI">
+
+	<h3>SVG Simplifier</h3>
+
+	<label>SVG to Simplify:</label>
+	<input type="file" onchange="inputFileToLoad_Changed(this);" />
+	<br />
+	<textarea id="textareaSvgToSimplify" cols="80" rows="16">
+	</textarea>
+	<br />
+
+	<button onclick="buttonSimplify_Clicked();">Simplify</button>
+	<br />
+
+	<label>SVG Simplified:</label>
+	<button onclick="buttonSave_Clicked();">Save</button>
+	<br />
+	<textarea id="textareaSvgSimplified" cols="80" rows="16">
+	</textarea>
+	<br />
+
+</div>
+
+<script type="text/javascript">
+
+// UI event handlers.
+
+function buttonSave_Clicked()
+{
+	var d = document;
+	var textareaSvgSimplified = d.getElementById("textareaSvgSimplified");
+	var textToSave = textareaSvgSimplified.value;
+
+	var blobTypeAsLookup = {};
+	blobTypeAsLookup["type"] = "text/plain";
+	var textToSaveAsBlob = new Blob([textToSave], blobTypeAsLookup);
+	var link = d.createElement("a");
+	link.href = window.URL.createObjectURL(textToSaveAsBlob);
+	link.download = "Simplified.svg";
+	link.click();
+}
+
+function buttonSimplify_Clicked()
+{
+	var d = document;
+	var textareaSvgToSimplify = d.getElementById("textareaSvgToSimplify");
+	var textareaSvgSimplified = d.getElementById("textareaSvgSimplified");
+
+	var svgToSimplify = textareaSvgToSimplify.value;
+
+	var simplifier = new SvgSimplifier();
+	var svgSimplified = simplifier.simplify(svgToSimplify);
+	textareaSvgSimplified.value = svgSimplified;
+}
+
+function inputFileToLoad_Changed(inputFileToLoad)
+{
+	var file = inputFileToLoad.files[0];
+	if (file != null)
+	{
+		var fileReader = new FileReader();
+		fileReader.onload = (event) =>
+		{
+			var fileContentsAsString = event.target.result;
+			var d = document;
+			var textareaSvgToSimplify = d.getElementById("textareaSvgToSimplify");
+			textareaSvgToSimplify.value = fileContentsAsString;
+		};
+		fileReader.readAsText(file);
+	}
+}
+
+// Classes.
+
+class SvgSimplifier
+{
+	simplify(svgToSimplify)
+	{
+		var svgAbbreviated = svgToSimplify;
+
+		svgAbbreviated = svgAbbreviated.split("xmlns:inkscape").join("xmlns:i");
+		svgAbbreviated = svgAbbreviated.split("inkscape:").join("i:");
+
+		svgAbbreviated = svgAbbreviated.split("xmlns:sodipodi").join("xmlns:s");
+		svgAbbreviated = svgAbbreviated.split("sodipodi:").join("s:");
+
+		var svgParsed = new DOMParser().parseFromString(svgAbbreviated, "text/xml");
+
+		var paths = svgParsed.getElementsByTagName("path");
+		for (var i = 0; i < paths.length; i++)
+		{
+			var path = paths[i];
+			path.id = "p" + i;
+			var pathPointsAsString = path.attributes.d.value;
+			var pathPointsAsStrings = pathPointsAsString.split(" ");
+			for (var p = 0; p < pathPointsAsStrings.length; p++)
+			{
+				var pathPointAsString = pathPointsAsStrings[p];
+				var pathPointDimensionsAsStrings = pathPointAsString.split(",");
+				for (var d = 0; d < pathPointDimensionsAsStrings.length; d++)
+				{
+					var pathPointDimensionAsString =
+						pathPointDimensionsAsStrings[d];
+					var pathPointDimensionAsFloat =
+						parseFloat(pathPointDimensionAsString);
+					if (isNaN(pathPointDimensionAsFloat) == false)
+					{
+						pathPointDimensionsAsStrings[d] =
+							Math.round(pathPointDimensionAsFloat);
+					}
+				}
+				pathPointAsString = pathPointDimensionsAsStrings.join(",");
+				pathPointsAsStrings[p] = pathPointAsString;
+			}
+			var pathPointsAsStringSimplified = pathPointsAsStrings.join(" ");
+			path.attributes.d.value = pathPointsAsStringSimplified;
+		}
+
+		var svgSimplified = new XMLSerializer().serializeToString(svgParsed);
+
+		return svgSimplified;
+	}
+}
+
+</script>
+
+</body>
+</html>
